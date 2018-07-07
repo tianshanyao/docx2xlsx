@@ -1,6 +1,7 @@
 import openpyxl
 import os
 import docx
+import re
 
 ######### 要求：docx里的文件内容都是选择性粘贴值的内容，保证每一个划分都是段落 #########
 ######### 要求：docx里题的顺序为：先有题干，再有选项，最后是答案 #######################
@@ -15,7 +16,7 @@ if not os.path.exists(input_path):
     os.exit()
 
 output_xlsx = './result.xlsx'
-##output_xls = './result.xls'
+output_xls = './result.xls'
 
 ## 删除原来的result文件们
 if(os.path.exists(output_xlsx)):
@@ -36,10 +37,6 @@ answer_pattern = r'答案：'    ## 答案的格式为：答案：
 ##question_pattern = r''
 ##option_pattern = r''
 ##answer_pattern = r''
-
-
-
-
 
 Adict = {}
 
@@ -77,8 +74,12 @@ for (r, ds, fs) in os.walk(input_path):
                 answer = ''
                 for a in answers:
                     answer = ''.join([answer, chr(ord('A') + options.index(a))])
+                tttt = list(answer)
+                tttt.sort()
+                answer = ''.join(tttt)
                 ## 存到字典中去（选项需加A.格式）
-                question_options = '-'.join(question.extend(options))
+                question_options = '-'.join(question)
+                question_options = '-'.join(options)
                 while question_options in Adict.keys():    ## 据说in比haskey()方法快
                     if answer != Adict[question_options][1]:
                         question_options = ''.join([question_options, '-'])
@@ -94,32 +95,6 @@ for (r, ds, fs) in os.walk(input_path):
                 options = []
                 question_options = ''
 
-
-
-
-
-
-
-
-
-#########################################################
-##Adict = {'question-Aoption-Boption-Coption':['question','answer','Aoption','Boption','Coption'],
-##         'question2-Aoption2-Boption2-Coption2-Doption2':['question2','answer2','Aoption2','Boption2','Coption2','Doption2']}
-##
-##max_n_options = 4
-##
-##
-##
-##
-##
-########################################################################
-
-
-
-
-
-
-
 ## 写入xlsx文件
 wb = openpyxl.Workbook()
 sheet = wb.active
@@ -130,7 +105,11 @@ for c in range(0, max_n_options + 2):
 r = 2
 for item in Adict.values():
     for c in range(0, len(item)):
-        sheet.cell(row = r, column = c + 1, value = item[c])
+        if type(item[c]) == list:
+            for o in range(0, len(item[c])):
+                sheet.cell(row = r, column = c + o + 1, value = item[c][o])
+        else:
+            sheet.cell(row = r, column = c + 1, value = item[c])
     r = r + 1
 wb.save(output_xlsx)
 print('保存成功')
