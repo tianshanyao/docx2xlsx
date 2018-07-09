@@ -18,6 +18,11 @@ from tkinter import ttk
 
 ######### 改进想法：是否可以做一个自动产生模式识别的方法？##############################
 
+######### 20180709改进：################################################################
+######### 1.添加重复次数################################################################
+######### 2.添加单/多选#################################################################
+######### 3.捉了点虫：网大版由于格式不一致的问题########################################
+
 
 
 def runmain():
@@ -32,10 +37,14 @@ def runmain():
     baititong_option_pattern = r'[ABCDEFGHIJKLMN]\.'    ## 选项的格式为：A~N.
     baititong_answer_pattern = r'答案：'    ## 答案的格式为：答案：
     ## L1大学re模式们
-    wangda_question_pattern = r''
-    wangda_option_pattern = r''
-    wangda_answer_pattern = r''
+    wangda_question_pattern = r'\d{1,3}、\s'
+    wangda_option_pattern = r'\s*[ABCDEFGHIJKLMN]\.\s'
+    wangda_answer_pattern = r'待检查\s*'
+    wangda_single_pattern = r'单选'
+    wangda_multiple_pattern = r'多选'
 
+    sm_flag = False    ## 是否使用单选/多选re模式，若没有答案，则需要开启单/多选re模式，其它情况则不需要
+    
     re_choice = re_text.get()
     ## 选择re模式
     if(re_choice == '百题通'):
@@ -46,6 +55,9 @@ def runmain():
         question_pattern = wangda_question_pattern
         option_pattern = wangda_option_pattern
         answer_pattern = wangda_answer_pattern
+        single_pattern = wangda_single_pattern
+        multiple_pattern = wangda_multiple_pattern
+        sm_flag = True
     else:
         question_pattern = question_pattern_text.get()
         option_pattern = option_pattern_text.get()
@@ -57,7 +69,11 @@ def runmain():
 
     
     docx_suffix = '.docx'
+    ignore_prefix = '~'
+    
     files_ignore = []
+    files_read = []
+    item_n = 0
 
     output_xlsx = './result.xlsx'
     output_xls = './result.xls'
@@ -68,7 +84,7 @@ def runmain():
     if(os.path.exists(output_xls)):
         os.remove(output_xls)
 
-    header = ['题干', '答案', '选项A', '选项B', '选项C', '选项D', '选项E', '选项F', '选项G', '选项H', '选项I', '选项J', '选项K', '选项L', '选项M', '选项N']
+    header = ['重复次数','单/多选' , '题干', '答案', '选项A', '选项B', '选项C', '选项D', '选项E', '选项F', '选项G', '选项H', '选项I', '选项J', '选项K', '选项L', '选项M', '选项N']
     max_n_options = 1    ## 选项个数默认为1
     option_header = ['A.', 'B.', 'C.', 'D.', 'E.', 'F.', 'G.', 'H.', 'G.', 'H.', 'I.', 'J.', 'K.', 'L.', 'M.', 'N.']
 
@@ -78,22 +94,32 @@ def runmain():
     answer = ''
     options = []
     question_options = ''
+    sm = ''
 
     answers = []
 
     for (r, ds, fs) in os.walk(input_path):
         for f in fs:
-            if f.endswith(docx_suffix):
+            if f.endswith(docx_suffix) and not f.startswith(ignore_prefix):
                 input_docx = '/'.join([input_path, f])
+##                print(f)
                 docx_file = docx.Document(input_docx)
                 for para in docx_file.paragraphs:
                     ## 匹配题干、选项、答案
-                    if re.match(question_pattern, para.text):
+                    if sm_flag and re.match(single_pattern, para.text):
+                        sm = '单选'
+                    elif sm_flag and re.match(multiple_pattern, para.text):
+                        sm = '多选'
+                    elif re.match(question_pattern, para.text):
                         question = re.sub(question_pattern, '', para.text, 1)
                     elif re.match(option_pattern, para.text):
                         options.append(re.sub(option_pattern, '', para.text, 1))
                     elif re.match(answer_pattern, para.text):
                         answer = re.sub(answer_pattern, '', para.text, 1)
+                        if len(answer.strip()) == 1:
+                            sm = '单选'
+                        elif len(answer.strip()) > 1:
+                            sm = '多选'
                         if(question == '' or not options):
                             question = ''
                             answer = ''
@@ -116,12 +142,15 @@ def runmain():
                         question_options = '-'.join(question)
                         question_options = '-'.join(options)
                         while question_options in Adict.keys():    ## 据说in比haskey()方法快
-                            if answer != Adict[question_options][1]:
+                            if answer != Adict[question_options][3]:
                                 question_options = ''.join([question_options, '-'])
                             else:
+                                Adict[question_options][0] = Adict[question_options][0] + 1
                                 break
                         if question_options not in Adict.keys():
-                            Adict[question_options] = [question, answer, list(map(lambda x, y:''.join([x, y]), option_header[:len(options)], options))]
+                            Adict[question_options] = [1, sm, question, answer, list(map(lambda x, y:''.join([x, y]), option_header[:len(options)], options))]
+                            item_n = item_n + 1
+##                            print([sm, question, answer])
                         ## 记录max_n_options，重置question、answer、options、question_options
                         if max_n_options < len(options):
                             max_n_options = len(options)
@@ -129,6 +158,7 @@ def runmain():
                         answer = ''
                         options = []
                         question_options = ''
+                files_read.append(f)
             else:
                 files_ignore.append(f)
 
@@ -137,7 +167,7 @@ def runmain():
     sheet = wb.active
     sheet.title = input_path.split('/')[-1]
     r = 1
-    for c in range(0, max_n_options + 2):
+    for c in range(0, max_n_options + 4):
         sheet.cell(row = r, column = c + 1, value = header[c])
     r = 2
     for item in Adict.values():
@@ -149,13 +179,14 @@ def runmain():
                 sheet.cell(row = r, column = c + 1, value = item[c])
         r = r + 1
     wb.save(output_xlsx)
+
+    result_list = ['保存成功']
     
-    result_text = '保存成功'
-    result_list = [result_text]
+    result_list.append('共处理文件%d个，处理题目%d个。'%(len(files_read), item_n))
     if files_ignore:
         result_list.append('以下文件未被处理：')
         result_list.extend(files_ignore)
-        result_text = '\n\n'.join(result_list)
+    result_text = '\n\n'.join(result_list)
     tkinter.messagebox.showinfo('提示', result_text)
 
 
