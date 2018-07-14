@@ -7,6 +7,8 @@ import tkinter.filedialog
 import tkinter.messagebox
 from tkinter import ttk
 
+######### ！！！！网大数据要求：内容是选择性粘贴值的内容，还需人为添加待核查标记########
+
 ######### 要求：docx里的文件内容都是选择性粘贴值的内容，保证每一个划分都是段落 #########
 ######### 要求：docx里题的顺序为：先有题干，再有选项，最后是答案 #######################
 ######### 结果：重复的题和答案自动去掉，但重复的题、答案不一致的情况会全部保留##########
@@ -23,6 +25,9 @@ from tkinter import ttk
 ######### 2.添加单/多选#################################################################
 ######### 3.捉了点虫：网大版由于格式不一致的问题########################################
 
+######### 20180714改进：################################################################
+######### 1.捉了个大虫：question_options只连接了options...##############################
+
 
 
 def runmain():
@@ -37,8 +42,8 @@ def runmain():
     baititong_option_pattern = r'[ABCDEFGHIJKLMN]\.'    ## 选项的格式为：A~N.
     baititong_answer_pattern = r'答案：'    ## 答案的格式为：答案：
     ## L1大学re模式们
-    wangda_question_pattern = r'\d{1,3}、\s'
-    wangda_option_pattern = r'\s*[ABCDEFGHIJKLMN]\.\s'
+    wangda_question_pattern = r'\d{1,3}、\s+'
+    wangda_option_pattern = r'\s*[ABCDEFGHIJKLMN]\.\s+'
     wangda_answer_pattern = r'待检查\s*'
     wangda_single_pattern = r'单选'
     wangda_multiple_pattern = r'多选'
@@ -84,7 +89,7 @@ def runmain():
     if(os.path.exists(output_xls)):
         os.remove(output_xls)
 
-    header = ['重复次数','单/多选' , '题干', '答案', '选项A', '选项B', '选项C', '选项D', '选项E', '选项F', '选项G', '选项H', '选项I', '选项J', '选项K', '选项L', '选项M', '选项N']
+    header = ['序号', '重复次数', '文件来源', '单/多选' , '题干', '答案', '选项A', '选项B', '选项C', '选项D', '选项E', '选项F', '选项G', '选项H', '选项I', '选项J', '选项K', '选项L', '选项M', '选项N']
     max_n_options = 1    ## 选项个数默认为1
     option_header = ['A.', 'B.', 'C.', 'D.', 'E.', 'F.', 'G.', 'H.', 'G.', 'H.', 'I.', 'J.', 'K.', 'L.', 'M.', 'N.']
 
@@ -95,6 +100,7 @@ def runmain():
     options = []
     question_options = ''
     sm = ''
+    no_question = ''
 
     answers = []
 
@@ -111,20 +117,22 @@ def runmain():
                     elif sm_flag and re.match(multiple_pattern, para.text):
                         sm = '多选'
                     elif re.match(question_pattern, para.text):
-                        question = re.sub(question_pattern, '', para.text, 1)
+                        no_question = re.match(question_pattern, para.text).group(0)
+                        question = re.sub(question_pattern, '', para.text, 1).strip()
                     elif re.match(option_pattern, para.text):
-                        options.append(re.sub(option_pattern, '', para.text, 1))
+                        options.append(re.sub(option_pattern, '', para.text, 1).strip())
                     elif re.match(answer_pattern, para.text):
-                        answer = re.sub(answer_pattern, '', para.text, 1)
-                        if len(answer.strip()) == 1:
+                        answer = re.sub(answer_pattern, '', para.text, 1).strip()
+                        if len(answer) == 1:
                             sm = '单选'
-                        elif len(answer.strip()) > 1:
+                        elif len(answer) > 1:
                             sm = '多选'
                         if(question == '' or not options):
                             question = ''
                             answer = ''
                             options = []
                             question_options = ''
+                            no_question = ''
                             continue
                         ## 整理选项和答案，1.将答案从ABC转换成文本答案list，2.将选项排序，3.将答案按排序后的选项换算回ABC
                         ## 答案若先为空会不会有问题？？？？？？？
@@ -139,16 +147,17 @@ def runmain():
                         tttt.sort()
                         answer = ''.join(tttt)
                         ## 存到字典中去（选项需加A.格式）
-                        question_options = '-'.join(question)
-                        question_options = '-'.join(options)
+                        ttttt = '-'.join(options)
+                        question_options = '-'.join([question, ttttt])
                         while question_options in Adict.keys():    ## 据说in比haskey()方法快
-                            if answer != Adict[question_options][3]:
+                            if answer != Adict[question_options][5]:
                                 question_options = ''.join([question_options, '-'])
                             else:
-                                Adict[question_options][0] = Adict[question_options][0] + 1
+                                Adict[question_options][1] = Adict[question_options][1] + 1
+                                Adict[question_options][2] = ', '.join([Adict[question_options][2], ''.join([no_question, f])])
                                 break
                         if question_options not in Adict.keys():
-                            Adict[question_options] = [1, sm, question, answer, list(map(lambda x, y:''.join([x, y]), option_header[:len(options)], options))]
+                            Adict[question_options] = [item_n + 1, 1, ''.join([no_question, f]), sm, question, answer, list(map(lambda x, y:''.join([x, y]), option_header[:len(options)], options))]
                             item_n = item_n + 1
 ##                            print([sm, question, answer])
                         ## 记录max_n_options，重置question、answer、options、question_options
@@ -158,6 +167,7 @@ def runmain():
                         answer = ''
                         options = []
                         question_options = ''
+                        no_question = ''
                 files_read.append(f)
             else:
                 files_ignore.append(f)
@@ -167,7 +177,7 @@ def runmain():
     sheet = wb.active
     sheet.title = input_path.split('/')[-1]
     r = 1
-    for c in range(0, max_n_options + 4):
+    for c in range(0, max_n_options + 6):
         sheet.cell(row = r, column = c + 1, value = header[c])
     r = 2
     for item in Adict.values():
