@@ -8,6 +8,7 @@ import tkinter.messagebox
 from tkinter import ttk
 
 ######### ！！！！网大数据要求：内容是选择性粘贴值的内容，还需人为添加待核查标记########
+######### 专门为网大考试时开发##########################################################
 
 ######### 要求：docx里的文件内容都是选择性粘贴值的内容，保证每一个划分都是段落 #########
 ######### 要求：docx里题的顺序为：先有题干，再有选项，最后是答案 #######################
@@ -89,7 +90,8 @@ def runmain():
     if(os.path.exists(output_xls)):
         os.remove(output_xls)
 
-    header = ['序号', '重复次数', '文件来源', '单/多选' , '题干', '答案', '选项A', '选项B', '选项C', '选项D', '选项E', '选项F', '选项G', '选项H', '选项I', '选项J', '选项K', '选项L', '选项M', '选项N']
+##    header = ['序号', '重复次数', '文件来源', '单/多选' , '题干', '答案', '选项A', '选项B', '选项C', '选项D', '选项E', '选项F', '选项G', '选项H', '选项I', '选项J', '选项K', '选项L', '选项M', '选项N']
+    header = ['文件来源', '单/多选', '题号' , '题干', '答案', '选项A', '选项B', '选项C', '选项D', '选项E', '选项F', '选项G', '选项H', '选项I', '选项J', '选项K', '选项L', '选项M', '选项N']
     max_n_options = 1    ## 选项个数默认为1
     option_header = ['A.', 'B.', 'C.', 'D.', 'E.', 'F.', 'G.', 'H.', 'G.', 'H.', 'I.', 'J.', 'K.', 'L.', 'M.', 'N.']
 
@@ -136,33 +138,42 @@ def runmain():
                             continue
                         ## 整理选项和答案，1.将答案从ABC转换成文本答案list，2.将选项排序，3.将答案按排序后的选项换算回ABC
                         ## 答案若先为空会不会有问题？？？？？？？
-                        answers = []
-                        for a in answer:
-                            answers.append(options[ord(a)-ord('A')])
-                        options.sort()
-                        answer = ''
-                        for a in answers:
-                            answer = ''.join([answer, chr(ord('A') + options.index(a))])
-                        tttt = list(answer)
-                        tttt.sort()
-                        answer = ''.join(tttt)
-                        ## 存到字典中去（选项需加A.格式）
-                        ttttt = '-'.join(options)
-                        question_options = '-'.join([question, ttttt])
+##                        answers = []
+##                        for a in answer:
+##                            answers.append(options[ord(a)-ord('A')])
+##                        options.sort()
+##                        answer = ''
+##                        for a in answers:
+##                            answer = ''.join([answer, chr(ord('A') + options.index(a))])
+##                        tttt = list(answer)
+##                        tttt.sort()
+##                        answer = ''.join(tttt)
+##                        ## 存到字典中去（选项需加A.格式）
+##                        ttttt = '-'.join(options)
+##                        question_options = '-'.join([question, ttttt])
+##                        while question_options in Adict.keys():    ## 据说in比haskey()方法快
+##                            if answer != Adict[question_options][5]:
+##                                question_options = ''.join([question_options, '-'])
+##                            else:
+##                                Adict[question_options][1] = Adict[question_options][1] + 1
+##                                Adict[question_options][2] = ', '.join([Adict[question_options][2], ''.join([no_question, f])])
+##                                break
+##                        if question_options not in Adict.keys():
+##                            Adict[question_options] = [item_n + 1, 1, ''.join([no_question, f]), sm, question, answer, list(map(lambda x, y:''.join([x, y]), option_header[:len(options)], options))]
+##                            item_n = item_n + 1
+####                            print([sm, question, answer])
+##                        ## 记录max_n_options，重置question、answer、options、question_options
+##                        if max_n_options < len(options):
+##                            max_n_options = len(options)
+                        question_options = question
                         while question_options in Adict.keys():    ## 据说in比haskey()方法快
-                            if answer != Adict[question_options][5]:
-                                question_options = ''.join([question_options, '-'])
-                            else:
-                                Adict[question_options][1] = Adict[question_options][1] + 1
-                                Adict[question_options][2] = ', '.join([Adict[question_options][2], ''.join([no_question, f])])
-                                break
-                        if question_options not in Adict.keys():
-                            Adict[question_options] = [item_n + 1, 1, ''.join([no_question, f]), sm, question, answer, list(map(lambda x, y:''.join([x, y]), option_header[:len(options)], options))]
-                            item_n = item_n + 1
-##                            print([sm, question, answer])
-                        ## 记录max_n_options，重置question、answer、options、question_options
+                            question_options = ''.join([question_options, '-'])
+                        Adict[question_options] = [f, sm, no_question, question, answer, list(map(lambda x, y:''.join([x, y]), option_header[:len(options)], options))]
+                        item_n = item_n + 1
                         if max_n_options < len(options):
                             max_n_options = len(options)
+
+                        
                         question = ''
                         answer = ''
                         options = []
@@ -177,7 +188,7 @@ def runmain():
     sheet = wb.active
     sheet.title = input_path.split('/')[-1]
     r = 1
-    for c in range(0, max_n_options + 6):
+    for c in range(0, max_n_options + 5):
         sheet.cell(row = r, column = c + 1, value = header[c])
     r = 2
     for item in Adict.values():
